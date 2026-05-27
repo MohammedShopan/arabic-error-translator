@@ -7,7 +7,8 @@ Translator.logInTerminal = true;
 
 try {
     // إحداث خطأ متعمد
-    console.log(myAge); 
+ x = null
+ x.color = 'red'
 } catch (error) {
     // استدعاء الدالة مباشرة دون تمرير أي خيارات إضافية هنا
     Translator.translate(error);

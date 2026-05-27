@@ -3,29 +3,32 @@ const path = require('path');
 const referenceErrors = require('./dict/reference-errors');
 const typeErrors = require('./dict/type-errors');
 const syntaxErrors = require('./dict/syntax-errors');
+const rangeErrors = require('./dict/range-errors');
+const uriErrors = require('./dict/uri-errors');
 
-const allErrors = {
+// دمج جميع القواميس
+const rawErrors = {
     ...referenceErrors,
     ...typeErrors,
-    ...syntaxErrors
+    ...syntaxErrors,
+    ...rangeErrors,
+    ...uriErrors
 };
 
-// إنشاء كائن المترجم
+// ترتيب المفاتيح تنازلياً حسب الطول (الأطول أولاً) لتجنب التطابق الخاطئ
+const sortedKeys = Object.keys(rawErrors).sort((a, b) => b.length - a.length);
+
 const myTranslator = {
-    //  الإعدادات الافتراضية (Default Settings)
     logInTerminal: true,
     saveToFile: false,
+    saveToMarkdown: false,
     filePath: path.join(process.cwd(), 'errors.log'),
+    markdownPath: path.join(process.cwd(), 'errors-report.md'),
 
-    /**
-     * دالة ترجمة وتحليل الأخطاء
-     * @param {string|Error} error - كائن الخطأ أو رسالة الخطأ النصية
-     * @returns {Object} كائن يحتوي على تفاصيل الخطأ المترجم
-     */
     translate: function(error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const lowerMessage = errorMessage.toLowerCase();
-        
+
         let result = {
             original: errorMessage,
             title: "خطأ غير معروف حالياً",
@@ -34,22 +37,18 @@ const myTranslator = {
             solution: "حاول قراءة نص الخطأ الإنجليزي بعناية أو ساهم معنا في إضافة ترجمته على جيت هاب!"
         };
 
-        // البحث عن الخطأ في القواميس
-        for (const key in allErrors) {
+        for (const key of sortedKeys) {
             if (lowerMessage.includes(key)) {
                 result = {
                     original: errorMessage,
-                    ...allErrors[key]
+                    ...rawErrors[key]
                 };
                 break;
             }
         }
 
-        // استخدام الإعدادات المخزنة في الكائن عبر الرمز (this)
-        
-        // 1. خيار الطباعة في الـ Terminal
         if (this.logInTerminal) {
-            console.log(`\n============== ❌ خطأ برمجبي مترجم ==============`);
+            console.log(`\n============== ❌ خطأ برمجي مترجم ==============`);
             console.log(`📌 نوع الخطأ: ${result.title}`);
             console.log(`💬 المعنى:    ${result.arabicMessage}`);
             console.log(`💡 الشرح:    ${result.explanation}`);
@@ -57,7 +56,6 @@ const myTranslator = {
             console.log(`================================================\n`);
         }
 
-        // 2. خيار الحفظ في ملف .log
         if (this.saveToFile) {
             const timestamp = new Date().toISOString();
             const logContent = `
@@ -69,18 +67,49 @@ Explanation: ${result.explanation}
 Solution: ${result.solution}
 -------------------------------------------------------
 `;
-            
+
             try {
-                // استخدام المسار المخزن في الكائن
                 fs.appendFileSync(this.filePath, logContent, 'utf8');
             } catch (fsError) {
                 console.error(`❌ فشل حفظ خطأ الترجمة في الملف: ${fsError.message}`);
             }
         }
 
+        if (this.saveToMarkdown) {
+            this._appendToMarkdown(result);
+        }
+
         return result;
+    },
+
+    _appendToMarkdown: function(result) {
+        const timestamp = new Date().toISOString();
+        const mdContent = `## 🐛 خطأ برمجي مترجم
+
+- **📅 التاريخ:** ${timestamp}
+- **📌 نوع الخطأ:** ${result.title}
+- **💬 المعنى:** ${result.arabicMessage}
+- **💡 الشرح:** ${result.explanation}
+- **🛠️ الحل:** ${result.solution}
+
+\`\`\`text
+${result.original}
+\`\`\`
+
+---
+`;
+
+        try {
+            const isFirst = !fs.existsSync(this.markdownPath);
+            if (isFirst) {
+                const header = `# 📋 تقرير الأخطاء المترجمة - Arabic Error Translator\n\n_تم إنشاء هذا التقرير تلقائياً بواسطة arabic-error-translator_\n\n---\n\n`;
+                fs.writeFileSync(this.markdownPath, header, 'utf8');
+            }
+            fs.appendFileSync(this.markdownPath, mdContent, 'utf8');
+        } catch (fsError) {
+            console.error(`❌ فشل حفظ تقرير Markdown: ${fsError.message}`);
+        }
     }
 };
 
-// تصدير الكائن بالكامل
 module.exports = myTranslator;
