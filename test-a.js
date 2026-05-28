@@ -7,8 +7,10 @@ Translator.logInTerminal = true;
 
 try {
     // إحداث خطأ متعمد
- x = null
- x.color = 'red'
+
+     x = [];
+     x.color = 'red';;debugger;kkk;
+
 } catch (error) {
     // استدعاء الدالة مباشرة دون تمرير أي خيارات إضافية هنا
     Translator.translate(error);
